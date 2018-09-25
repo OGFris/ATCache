@@ -17,8 +17,8 @@ package server
 
 import "net/http"
 
-type Router struct {}
+type Router struct{}
 
-func (r *Router) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	// TODO
+func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
 }

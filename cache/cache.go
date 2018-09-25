@@ -13,38 +13,47 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package cache
 
 import (
-	"bufio"
-	"fmt"
-	"github.com/AnimeTwist/ATCache/server"
-	"os"
+	"github.com/json-iterator/go"
+	"io/ioutil"
+	"time"
 )
 
-// TODO:
-// [ ] Http server to handle the request
-// [ ] Downloading the videos then storing them
-// [ ] Caching the videos with a timer
-
-var (
-	CacheDir = os.Getenv("AT_CACHE_DIR")
-)
-
-func init() {
-	if CacheDir == "" {
-		CacheDir = "./"
-	}
-	if _, err := os.Stat(CacheDir + "data.json"); err != nil {
-		os.Create(CacheDir + "data.json")
-	}
+type Cache struct {
+	Name    string    `json:"name"`
+	Created time.Time `json:"created"`
+	Expire  time.Time `json:"expire"`
+	Traffic uint      `json:"traffic"`
 }
 
-func main() {
-	s := server.Server{}
-	s.Start("1818")
+type Caches struct {
+	file   string
+	caches map[string]Cache
+}
 
-	fmt.Println("ATCache is running on port 1818, press ENTER to quit...")
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan()
+func (c *Caches) UpdateCache(cache Cache) {
+	c.caches[cache.Name] = cache
+	c.Save()
+}
+
+func (c *Caches) AddCache(cache Cache) {
+	c.UpdateCache(cache)
+}
+
+func (c *Caches) DeleteCache(cache Cache) {
+	delete(c.caches, cache.Name)
+	c.Save()
+}
+
+func (c *Caches) Save() {
+	b, err := jsoniter.Marshal(c.caches)
+	if err != nil {
+		panic(err)
+	}
+	err = ioutil.WriteFile(c.file, b, 0644)
+	if err != nil {
+		panic(err)
+	}
 }

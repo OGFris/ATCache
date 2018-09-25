@@ -13,38 +13,24 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package main
+package server
 
 import (
-	"bufio"
-	"fmt"
-	"github.com/AnimeTwist/ATCache/server"
-	"os"
+	"net/http"
+	"time"
 )
 
-// TODO:
-// [ ] Http server to handle the request
-// [ ] Downloading the videos then storing them
-// [ ] Caching the videos with a timer
-
-var (
-	CacheDir = os.Getenv("AT_CACHE_DIR")
-)
-
-func init() {
-	if CacheDir == "" {
-		CacheDir = "./"
-	}
-	if _, err := os.Stat(CacheDir + "data.json"); err != nil {
-		os.Create(CacheDir + "data.json")
-	}
+type Server struct {
+	Http *http.Server
 }
 
-func main() {
-	s := server.Server{}
-	s.Start("1818")
+func (s *Server) Start(port string) {
+	s.Http = &http.Server{
+		Handler:      &Router{},
+		Addr:         "127.0.0.1:" + port,
+		WriteTimeout: 10 * time.Second,
+		ReadTimeout:  10 * time.Second,
+	}
 
-	fmt.Println("ATCache is running on port 1818, press ENTER to quit...")
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan()
+	go s.Http.ListenAndServe()
 }
