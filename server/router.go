@@ -15,10 +15,58 @@
 
 package server
 
-import "net/http"
+import (
+	"fmt"
+	"github.com/AnimeTwist/ATCache/cache"
+	"io"
+	"net/http"
+	"os"
+	"strings"
+)
 
 type Router struct{}
 
-func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+const URL = "https://twist.moe"
 
+func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+	if path == "/favicon.ico" {
+		return
+	}
+
+	response, err := http.Get(URL + path)
+	if response.StatusCode != http.StatusOK {
+		w.WriteHeader(response.StatusCode)
+		return
+	}
+	if err != nil {
+		panic(err)
+	}
+	filePath := cache.CacheDir + strings.NewReplacer("/", "_").Replace(strings.Replace(path, "/", "", 1))
+	if _, err := os.Stat(filePath); err == nil {
+		w.Header().Set("Content-Type", response.Header.Get("Content-Type"))
+		f, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0666)
+		if err != nil {
+			panic(err)
+		}
+		io.Copy(w, f)
+	} else {
+		w.Header().Set("Location", Instance.ProxyServer.URL + path)
+		w.WriteHeader(http.StatusFound)
+		go func() {
+			f, err := os.Create(filePath)
+			if err != nil {
+				panic(err)
+			}
+
+			defer f.Close()
+			defer response.Body.Close()
+			written, err := io.Copy(f, response.Body)
+			if err != nil {
+				panic(err)
+			}
+
+			fmt.Println("Finished downloading: ", path, " Size: ", fmt.Sprint(written/1000000), "MB.")
+		}()
+	}
 }

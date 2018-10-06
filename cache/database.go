@@ -12,21 +12,4 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 package cache
-
-import (
-	"time"
-)
-
-var (
-	CacheDir string
-	CacheFile map[string]string
-)
-
-type Cache struct {
-	Name    string    `json:"name"`
-	Created time.Time `json:"created"`
-	Expire  time.Time `json:"expire"`
-	Traffic uint      `json:"traffic"`
-}

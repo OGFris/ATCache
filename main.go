@@ -17,34 +17,40 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
+	"github.com/AnimeTwist/ATCache/cache"
 	"github.com/AnimeTwist/ATCache/server"
 	"os"
 )
 
 // TODO:
-// [ ] Http server to handle the request
-// [ ] Downloading the videos then storing them
+// [+] Http server to handle the request
+// [+] Downloading the videos then storing them
 // [ ] Caching the videos with a timer
 
-var (
-	CacheDir = os.Getenv("AT_CACHE_DIR")
-)
 
 func init() {
-	if CacheDir == "" {
-		CacheDir = "./"
+	cache.CacheDir = os.Getenv("AT_CACHE_DIR")
+
+	if cache.CacheDir == "" {
+		os.Mkdir("./caches/", 0777)
+		cache.CacheDir = "./caches/"
 	}
-	if _, err := os.Stat(CacheDir + "data.json"); err != nil {
-		os.Create(CacheDir + "data.json")
-	}
+
+
 }
 
 func main() {
-	s := server.Server{}
-	s.Start("1818")
+	var port int
 
-	fmt.Println("ATCache is running on port 1818, press ENTER to quit...")
+	flag.IntVar(&port, "port", 1818, "set the port of the server")
+
+	server.Instance.Start(fmt.Sprint(port))
+
+	fmt.Println("ATCache is running on port " + fmt.Sprint(port) + ", press ENTER to quit...")
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
+
+	server.Instance.Shutdown()
 }
