@@ -79,7 +79,8 @@ func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if _, err := os.Stat(filePath); err == nil {
 				w.Header().Set("Content-Type", c.ContentType)
 				http.ServeFile(w, r, filePath)
-				go cache.Traffic{}.Create(r.RemoteAddr, c.ID)
+				traffic := cache.Traffic{}
+				go traffic.Create(r.RemoteAddr, c.ID)
 			} else {
 				w.Header().Set("Location", Instance.ProxyServer.URL+path)
 				w.WriteHeader(http.StatusFound)
@@ -120,7 +121,8 @@ func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 				fmt.Println("Finished downloading: ", path, " Size: ", fmt.Sprint(written/1000000), "MB.")
 				c.Create(path, filePath, response.Header.Get("Content-Type"))
-				cache.Traffic{}.Create(r.RemoteAddr, c.ID)
+				traffic := cache.Traffic{}
+				traffic.Create(r.RemoteAddr, c.ID)
 				if cache.SizeLeft() < int(written) {
 					removedCache := cache.SmallestTraffic()
 					err := os.Remove(removedCache.File)
