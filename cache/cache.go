@@ -16,44 +16,115 @@
 package cache
 
 import (
-	"github.com/json-iterator/go"
-	"io/ioutil"
+	"os"
 	"time"
 )
 
+var (
+	Dir     string
+	MaxSize int
+)
+
+type Model struct {
+	ID        uint       `gorm:"primary_key" json:"id"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	DeletedAt *time.Time `gorm:"Default:null" sql:"index" json:"deleted_at"`
+}
+
 type Cache struct {
-	Name    string    `json:"name"`
-	Created time.Time `json:"created"`
-	Expire  time.Time `json:"expire"`
-	Traffic uint      `json:"traffic"`
+	Model
+	Path        string    `gorm:"Type:varchar(64);Column:path;NOT NULL;primary_key;unique" json:"path"`
+	File        string    `gorm:"Type:varchar(64);Column:file;NOT NULL;primary_key;unique" json:"file"`
+	ContentType string    `gorm:"Type:varchar(64);Column:content_type;NOT NULL" json:"content_type"`
+	Traffics    []Traffic `json:"-"`
 }
 
-type Caches struct {
-	file   string
-	caches map[string]Cache
+type Traffic struct {
+	Model
+	CacheID uint   `gorm:"Type:int(10) unsigned;Column:cache_id;NOT NULL" json:"cache_id"`
+	Address string `gorm:"Type:varchar(64);Column:address;NOT NULL;primary_key;unique" json:"name"`
 }
 
-func (c *Caches) UpdateCache(cache Cache) {
-	c.caches[cache.Name] = cache
-	c.Save()
+func (c *Cache) Create(path, file, contentType string) *Cache {
+	c.Path = path
+	c.File = file
+	c.ContentType = contentType
+	Instance.Create(c)
+
+	return c
 }
 
-func (c *Caches) AddCache(cache Cache) {
-	c.UpdateCache(cache)
+func (c *Cache) Delete(id uint) *Cache {
+	Instance.Delete(c, c)
+
+	return c
 }
 
-func (c *Caches) DeleteCache(cache Cache) {
-	delete(c.caches, cache.Name)
-	c.Save()
+func (*Cache) Exists(path string) bool {
+	return Instance.Find(&Cache{}, &Cache{Path: path}).Error == nil
 }
 
-func (c *Caches) Save() {
-	b, err := jsoniter.Marshal(c.caches)
+func (t *Traffic) Create(addr string, cacheID uint) *Traffic {
+	t.Address = addr
+	t.CacheID = cacheID
+	Instance.Create(t)
+
+	return t
+}
+
+func FolderSize() int {
+	return folderSize(Dir)
+}
+
+func folderSize(path string) (size int) {
+	folder, err := os.Open(path)
 	if err != nil {
 		panic(err)
 	}
-	err = ioutil.WriteFile(c.file, b, 0644)
+	files, err := folder.Readdir(0)
 	if err != nil {
 		panic(err)
 	}
+
+	for _, f := range files {
+		if f.IsDir() {
+			size += int(f.Size())
+			size += folderSize(path + f.Name())
+		} else {
+			size += int(f.Size())
+		}
+	}
+
+	return
+}
+
+func SizeLeft() int {
+	return MaxSize - FolderSize()
+}
+
+func SmallestTraffic() (c Cache) {
+	var (
+		caches []Cache
+		last   uint
+	)
+
+	traffics := make(map[uint]int)
+	Instance.Find(&caches)
+	for i, cache := range caches {
+		for _, traffic := range cache.Traffics {
+			if traffic.CreatedAt.Unix() > (time.Now().Unix() - int64(time.Hour*24*7)) {
+				traffics[cache.ID]++
+			}
+			if i != 0 {
+				if traffics[last] > traffics[cache.ID] {
+					c = cache
+				}
+			} else {
+				last = cache.ID
+			}
+		}
+	}
+
+	return
 }

@@ -1,5 +1,6 @@
 ## ATCache
-ATCache is a caching server for AnimeTwist used to store video files.
+ ATCache is a caching server for AnimeTwist used for caching videos from animes, although the ability
+to cache basic stuff will be implemented as soon as the videos caching system is done.
 
 ### License
 ATCache is under the [GNU General Public License v3.0](https://github.com/AnimeTwist/ATCache/blob/master/LICENSE).

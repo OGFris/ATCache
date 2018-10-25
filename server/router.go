@@ -15,10 +15,121 @@
 
 package server
 
-import "net/http"
+import (
+	"fmt"
+	"github.com/AnimeTwist/ATCache/cache"
+	"github.com/OGFris/Treagler"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"strings"
+)
 
 type Router struct{}
 
-func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+const URL = "http://localhost"
 
+// TODO: Make separated functions for each process to make it more clear.
+
+func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+	fail := func() error {
+		w.WriteHeader(http.StatusInternalServerError)
+		return nil
+	}
+	if path == "/favicon.ico" {
+		if _, err := os.Stat(cache.Dir + "favicon.ico"); err != nil {
+			response, err := http.Get(URL + path)
+			Treagler.Do(func() error { return err }, fail, URL+path)
+
+			defer response.Body.Close()
+			bytes, err := ioutil.ReadAll(response.Body)
+			Treagler.Do(func() error { return err }, fail, URL+path)
+
+			f, err := os.Create(cache.Dir + "favicon.ico")
+			Treagler.Do(func() error { return err }, fail, URL+path)
+			f.Write(bytes)
+			w.Write(bytes)
+		} else {
+			f, err := os.Open(cache.Dir + "favicon.ico")
+			Treagler.Do(func() error { return err }, fail, URL+path)
+
+			io.Copy(w, f)
+		}
+	} else {
+
+		paths := strings.Split(strings.Replace(path, "/", "", 1), "/")
+		folder := cache.Dir
+		file := ""
+		for i, n := range paths {
+			if i == (len(paths) - 1) {
+				file = n
+				os.MkdirAll(folder, 0777)
+			} else {
+				folder += n + "/"
+			}
+		}
+
+		filePath := folder + file
+
+		c := cache.Cache{}
+		if c.Exists(path) {
+
+			if _, err := os.Stat(filePath); err == nil {
+				w.Header().Set("Content-Type", c.ContentType)
+				http.ServeFile(w, r, filePath)
+				go cache.Traffic{}.Create(r.RemoteAddr, c.ID)
+			} else {
+				w.Header().Set("Location", Instance.ProxyServer.URL+path)
+				w.WriteHeader(http.StatusFound)
+				go c.Delete(c.ID)
+			}
+		} else {
+			response, err := http.Get(URL + path)
+			Treagler.Do(func() error { return err }, fail, URL+path)
+
+			if response.StatusCode != http.StatusOK {
+				defer response.Body.Close()
+				w.WriteHeader(response.StatusCode)
+				return
+			}
+
+			w.Header().Set("Location", Instance.ProxyServer.URL+path)
+			w.WriteHeader(http.StatusFound)
+
+			go func() {
+				if _, err := os.Stat(filePath); err == nil {
+					err := os.Remove(filePath)
+					if err != nil {
+						panic(err)
+					}
+				}
+
+				f, err := os.Create(filePath)
+				if err != nil {
+					panic(err)
+				}
+
+				defer f.Close()
+				defer response.Body.Close()
+				written, err := io.Copy(f, response.Body)
+				if err != nil {
+					panic(err)
+				}
+
+				fmt.Println("Finished downloading: ", path, " Size: ", fmt.Sprint(written/1000000), "MB.")
+				c.Create(path, filePath, response.Header.Get("Content-Type"))
+				cache.Traffic{}.Create(r.RemoteAddr, c.ID)
+				if cache.SizeLeft() < int(written) {
+					removedCache := cache.SmallestTraffic()
+					err := os.Remove(removedCache.File)
+					removedCache.Delete(removedCache.ID)
+					if err != nil {
+						panic(err)
+					}
+				}
+			}()
+		}
+	}
 }
