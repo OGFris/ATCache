@@ -77,7 +77,7 @@ func (t *Traffic) Create(addr string, cacheID uint) *Traffic {
 		t.CacheID = cacheID
 		Instance.Create(t)
 		TrafficCache[cacheID][addr] = true
-		log.Println(addr, " is viewing ", cacheID, ".")
+		log.Println(addr, " is viewing cache id: ", cacheID)
 	}
 
 	return t

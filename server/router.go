@@ -80,7 +80,7 @@ func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", c.ContentType)
 				http.ServeFile(w, r, filePath)
 				traffic := cache.Traffic{}
-				go traffic.Create(r.RemoteAddr, c.ID)
+				go traffic.Create(strings.Split(r.RemoteAddr, ":")[0], c.ID)
 			} else {
 				log.Println("Redirecting the user to the ReverseProxy.")
 				w.Header().Set("Location", Instance.ProxyServer.URL+path)
@@ -126,7 +126,7 @@ func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				log.Println("Finished downloading: ", path, ", Size: ", fmt.Sprint(written/1000000), "MB.")
 				c.Create(path, filePath, response.Header.Get("Content-Type"))
 				traffic := cache.Traffic{}
-				traffic.Create(r.RemoteAddr, c.ID)
+				traffic.Create(strings.Split(r.RemoteAddr, ":")[0], c.ID)
 				if cache.SizeLeft() < int(written) {
 					removedCache := cache.SmallestTraffic()
 					err := os.Remove(removedCache.File)
