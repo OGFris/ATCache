@@ -49,7 +49,7 @@ func main() {
 	flag.IntVar(&cache.MaxSize, "maxsize", 1000000000*1000 /* 1 TB */, "the max size of the cache")
 	flag.Parse()
 	server.Instance.Start(fmt.Sprint(port))
-	log.Println("ATCache is running on port " + fmt.Sprint(port) + ", press ENTER to quit...")
+	log.Println("ATCache is running on port ", fmt.Sprint(port), ", press ENTER to quit...")
 	bufio.NewScanner(os.Stdin).Scan()
 	log.Println("Killing processes...")
 	server.Instance.Shutdown()

@@ -123,7 +123,7 @@ func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					panic(err)
 				}
 
-				fmt.Println("Finished downloading: ", path, " Size: ", fmt.Sprint(written/1000000), "MB.")
+				log.Println("Finished downloading: ", path, ", Size: ", fmt.Sprint(written/1000000), "MB.")
 				c.Create(path, filePath, response.Header.Get("Content-Type"))
 				traffic := cache.Traffic{}
 				traffic.Create(r.RemoteAddr, c.ID)

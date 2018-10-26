@@ -69,7 +69,10 @@ func (c *Cache) Exists(path string) bool {
 
 func (t *Traffic) Create(addr string, cacheID uint) *Traffic {
 	// To prevent from duplicating because of the partial response (206) when streaming the video.
-	if _, n := TrafficCache[cacheID][addr]; n == false {
+	if _, n := TrafficCache[cacheID]; !n {
+		TrafficCache[cacheID] = make(map[string]bool)
+	}
+	if _, n := TrafficCache[cacheID][addr]; !n {
 		t.Address = addr
 		t.CacheID = cacheID
 		Instance.Create(t)
