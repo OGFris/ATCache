@@ -29,10 +29,9 @@ import (
 
 type Router struct{}
 
-const URL = "http://localhost"
+var URL string
 
 // TODO: Make separated functions for each process to make it more clear.
-
 func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
 	fail := func() error {
@@ -94,7 +93,7 @@ func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			if response.StatusCode != http.StatusOK {
 				defer response.Body.Close()
-				log.Println(path, " returned ", response.Status, ".")
+				log.Println(path, "responded with", response.Status)
 				w.WriteHeader(response.StatusCode)
 				return
 			}
@@ -104,6 +103,13 @@ func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusFound)
 
 			go func() {
+				d := cache.DownloadQueue{}
+				if d.Exists(path) {
+					return
+				} else {
+					d.Create(path, filePath)
+				}
+
 				if _, err := os.Stat(filePath); err == nil {
 					err := os.Remove(filePath)
 					if err != nil {
@@ -123,14 +129,15 @@ func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					panic(err)
 				}
 
-				log.Println("Finished downloading: ", path, ", Size: ", fmt.Sprint(written/1000000), "MB.")
+				log.Println("Finished downloading:", path, "- Size: ", fmt.Sprint(written/1000000), "MB.")
+				d.Delete(path)
 				c.Create(path, filePath, response.Header.Get("Content-Type"))
 				traffic := cache.Traffic{}
 				traffic.Create(strings.Split(r.RemoteAddr, ":")[0], c.ID)
 				if cache.SizeLeft() < int(written) {
 					removedCache := cache.SmallestTraffic()
 					err := os.Remove(removedCache.File)
-					log.Println("Cache ", removedCache.ID, " got removed because of reaching max cache size.")
+					log.Println("Cache", removedCache.ID, "got removed because of reaching max cache size.")
 					removedCache.Delete(removedCache.ID)
 					if err != nil {
 						panic(err)

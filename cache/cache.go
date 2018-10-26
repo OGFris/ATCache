@@ -48,11 +48,19 @@ type Traffic struct {
 	Address string `gorm:"Type:varchar(64);Column:address;NOT NULL" json:"name"`
 }
 
+type DownloadQueue struct {
+	Model
+	Path string `gorm:"Type:varchar(64);Column:path;NOT NULL;primary_key;unique" json:"path"`
+	File string `gorm:"Type:varchar(64);Column:file;NOT NULL;primary_key;unique" json:"file"`
+}
+
 func (c *Cache) Create(path, file, contentType string) *Cache {
 	c.Path = path
 	c.File = file
 	c.ContentType = contentType
-	Instance.Create(c)
+	if err := Instance.Create(c).Error; err != nil {
+		panic(err)
+	}
 
 	return c
 }
@@ -75,12 +83,36 @@ func (t *Traffic) Create(addr string, cacheID uint) *Traffic {
 	if _, n := TrafficCache[cacheID][addr]; !n {
 		t.Address = addr
 		t.CacheID = cacheID
-		Instance.Create(t)
+		if err := Instance.Create(t).Error; err != nil {
+			panic(err)
+		}
 		TrafficCache[cacheID][addr] = true
-		log.Println(addr, " is viewing cache id: ", cacheID)
+		log.Println(addr, "is viewing cache id:", cacheID)
 	}
 
 	return t
+}
+
+func (d *DownloadQueue) Exists(path string) bool {
+	return Instance.Find(d, &DownloadQueue{Path: path}).Error == nil
+}
+
+func (d *DownloadQueue) Create(path, file string) *DownloadQueue {
+	d.File = file
+	d.Path = path
+	if err := Instance.Create(d).Error; err != nil {
+		panic(err)
+	}
+
+	return d
+}
+
+func (d *DownloadQueue) Delete(path string) *DownloadQueue {
+	if err := Instance.Delete(d, &DownloadQueue{Path: path}).Error; err != nil {
+		panic(err)
+	}
+
+	return d
 }
 
 func FolderSize() int {
@@ -113,24 +145,36 @@ func SizeLeft() int {
 }
 
 func SmallestTraffic() (c Cache) {
-	var (
-		caches []Cache
-		last   uint
-	)
+	var caches []Cache
 
 	traffics := make(map[uint]int)
 	Instance.Find(&caches)
 	for i, cache := range caches {
-		for _, traffic := range cache.Traffics {
-			if traffic.CreatedAt.Unix() > (time.Now().Unix() - int64(time.Hour*24*7)) {
-				traffics[cache.ID]++
+		if cache.CreatedAt.Unix() < (time.Now().Unix() - int64(time.Hour*24)) {
+			for _, traffic := range cache.Traffics {
+				if traffic.CreatedAt.Unix() > (time.Now().Unix() - int64(time.Hour*24)) {
+					traffics[cache.ID]++
+				}
+				if i != 0 {
+					if traffics[c.ID] > traffics[cache.ID] {
+						c = cache
+					}
+				} else {
+					c = cache
+				}
 			}
+		}
+	}
+
+	// If all cached files are new then this will prevent from an error to occur
+	if len(c.Traffics) == 0 {
+		for i, cache := range caches {
 			if i != 0 {
-				if traffics[last] > traffics[cache.ID] {
+				if len(cache.Traffics) < len(c.Traffics) {
 					c = cache
 				}
 			} else {
-				last = cache.ID
+				c = cache
 			}
 		}
 	}

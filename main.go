@@ -46,13 +46,16 @@ func main() {
 	var port int
 
 	flag.IntVar(&port, "port", 1818, "the port of the server")
+	flag.StringVar(&server.URL, "url", "http://localhost", "the url of the site to cache")
 	flag.IntVar(&cache.MaxSize, "maxsize", 1000000000*1000 /* 1 TB */, "the max size of the cache")
 	flag.Parse()
+
 	server.Instance.Start(fmt.Sprint(port))
 	log.Println("ATCache is running on port ", fmt.Sprint(port), ", press ENTER to quit...")
+
 	bufio.NewScanner(os.Stdin).Scan()
 	log.Println("Killing processes...")
 	server.Instance.Shutdown()
 	cache.Instance.Close()
-	log.Println("Successfully shutdown everything. Bye.")
+	log.Println("Successfully shutdown everything. Bye, senpai.")
 }
