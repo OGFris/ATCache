@@ -35,3 +35,4 @@ func LoadDB(user, password, name string) (err error) {
 	}
 	return
 }
+
