@@ -16,13 +16,15 @@
 package cache
 
 import (
+	"log"
 	"os"
 	"time"
 )
 
 var (
-	Dir     string
-	MaxSize int
+	Dir          string
+	MaxSize      int
+	TrafficCache = make(map[uint]map[string]bool)
 )
 
 type Model struct {
@@ -42,8 +44,8 @@ type Cache struct {
 
 type Traffic struct {
 	Model
-	CacheID uint   `gorm:"Type:int(10) unsigned;Column:cache_id;NOT NULL" json:"cache_id"`
-	Address string `gorm:"Type:varchar(64);Column:address;NOT NULL;primary_key;unique" json:"name"`
+	CacheID uint   `gorm:"Type:int(10) unsigned;Column:cache_id;NOT NULL;primary_key" json:"cache_id"`
+	Address string `gorm:"Type:varchar(64);Column:address;NOT NULL" json:"name"`
 }
 
 func (c *Cache) Create(path, file, contentType string) *Cache {
@@ -61,14 +63,19 @@ func (c *Cache) Delete(id uint) *Cache {
 	return c
 }
 
-func (*Cache) Exists(path string) bool {
-	return Instance.Find(&Cache{}, &Cache{Path: path}).Error == nil
+func (c *Cache) Exists(path string) bool {
+	return Instance.Find(c, &Cache{Path: path}).Error == nil
 }
 
 func (t *Traffic) Create(addr string, cacheID uint) *Traffic {
-	t.Address = addr
-	t.CacheID = cacheID
-	Instance.Create(t)
+	// To prevent from duplicating because of the partial response (206) when streaming the video.
+	if _, n := TrafficCache[cacheID][addr]; n == false {
+		t.Address = addr
+		t.CacheID = cacheID
+		Instance.Create(t)
+		TrafficCache[cacheID][addr] = true
+		log.Println(addr, " is viewing ", cacheID, ".")
+	}
 
 	return t
 }
@@ -89,7 +96,6 @@ func folderSize(path string) (size int) {
 
 	for _, f := range files {
 		if f.IsDir() {
-			size += int(f.Size())
 			size += folderSize(path + f.Name())
 		} else {
 			size += int(f.Size())

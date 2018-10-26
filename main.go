@@ -21,10 +21,12 @@ import (
 	"fmt"
 	"github.com/AnimeTwist/ATCache/cache"
 	"github.com/AnimeTwist/ATCache/server"
+	"log"
 	"os"
 )
 
 func init() {
+	log.SetPrefix("(ATCache) ")
 	cache.Dir = os.Getenv("ATCACHE_DIR")
 	if cache.Dir == "" {
 		os.Mkdir("./caches/", 0777)
@@ -32,21 +34,25 @@ func init() {
 	} else {
 		os.MkdirAll(cache.Dir, 0777)
 	}
+	log.Println("Cache folder path set to ", cache.Dir)
 
 	if err := cache.LoadDB("root", "", "at_cache"); err != nil {
 		panic(err)
 	}
+	log.Println("Loaded the mysql database successfully.")
 }
 
 func main() {
 	var port int
 
 	flag.IntVar(&port, "port", 1818, "the port of the server")
-	flag.IntVar(&cache.MaxSize, "maxsize", 1000000000 /* 1 GB */, "the max size of the cache")
+	flag.IntVar(&cache.MaxSize, "maxsize", 1000000000*1000 /* 1 TB */, "the max size of the cache")
 	flag.Parse()
 	server.Instance.Start(fmt.Sprint(port))
-	fmt.Println("ATCache is running on port " + fmt.Sprint(port) + ", press ENTER to quit...")
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan()
+	log.Println("ATCache is running on port " + fmt.Sprint(port) + ", press ENTER to quit...")
+	bufio.NewScanner(os.Stdin).Scan()
+	log.Println("Killing processes...")
 	server.Instance.Shutdown()
+	cache.Instance.Close()
+	log.Println("Successfully shutdown everything. Bye.")
 }

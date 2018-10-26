@@ -21,6 +21,7 @@ import (
 	"github.com/OGFris/Treagler"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -75,15 +76,16 @@ func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		c := cache.Cache{}
 		if c.Exists(path) {
-
 			if _, err := os.Stat(filePath); err == nil {
 				w.Header().Set("Content-Type", c.ContentType)
 				http.ServeFile(w, r, filePath)
 				traffic := cache.Traffic{}
 				go traffic.Create(r.RemoteAddr, c.ID)
 			} else {
+				log.Println("Redirecting the user to the ReverseProxy.")
 				w.Header().Set("Location", Instance.ProxyServer.URL+path)
 				w.WriteHeader(http.StatusFound)
+				log.Println("An error occurred where the cache is stored in the database but not in the cache folder.")
 				go c.Delete(c.ID)
 			}
 		} else {
@@ -92,10 +94,12 @@ func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			if response.StatusCode != http.StatusOK {
 				defer response.Body.Close()
+				log.Println(path, " returned ", response.Status, ".")
 				w.WriteHeader(response.StatusCode)
 				return
 			}
 
+			log.Println("Redirecting the user to the ReverseProxy.")
 			w.Header().Set("Location", Instance.ProxyServer.URL+path)
 			w.WriteHeader(http.StatusFound)
 
@@ -126,6 +130,7 @@ func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				if cache.SizeLeft() < int(written) {
 					removedCache := cache.SmallestTraffic()
 					err := os.Remove(removedCache.File)
+					log.Println("Cache ", removedCache.ID, " got removed because of reaching max cache size.")
 					removedCache.Delete(removedCache.ID)
 					if err != nil {
 						panic(err)
