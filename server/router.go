@@ -16,7 +16,6 @@
 package server
 
 import (
-	"fmt"
 	"github.com/AnimeTwist/ATCache/cache"
 	"github.com/OGFris/Treagler"
 	"io"
@@ -129,7 +128,7 @@ func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					panic(err)
 				}
 
-				log.Println("Finished downloading:", path, "- Size: ", fmt.Sprint(written/1000000), "MB.")
+				log.Println("Finished downloading:", path, "- Size: ", written/1000000, "MB.")
 				d.Delete(path)
 				c.Create(path, filePath, response.Header.Get("Content-Type"))
 				traffic := cache.Traffic{}
