@@ -28,6 +28,7 @@ func LoadDB(user, password, name string) (err error) {
 		Instance.AutoMigrate(
 			&Cache{},
 			&Traffic{},
+			&DownloadQueue{},
 		)
 		Instance.Model(&Traffic{}).AddForeignKey("cache_id", "caches(id)", "RESTRICT", "RESTRICT")
 		return nil
