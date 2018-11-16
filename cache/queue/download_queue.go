@@ -21,7 +21,7 @@ import (
 )
 
 func Exists(path string) bool {
-	if redis.Client.Exists(path).Err() != nil {
+	if redis.Client.Get(path).Err() != nil {
 		return false
 	}
 	return true
