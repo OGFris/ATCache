@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/AnimeTwist/ATCache/cache"
+	"github.com/AnimeTwist/ATCache/redis"
 	"github.com/AnimeTwist/ATCache/server"
 	"log"
 	"os"
@@ -36,10 +37,15 @@ func init() {
 	}
 	log.Println("Cache folder path set to ", cache.Dir)
 
-	if err := cache.LoadDB("root", "", "at_cache"); err != nil {
+	if err := cache.Load("root", "", "at_cache"); err != nil {
 		panic(err)
 	}
 	log.Println("Loaded the mysql database successfully.")
+
+	if err := redis.Load("localhost", "6379", "", 0); err != nil {
+		panic(err)
+	}
+	log.Println("Loaded the redis database successfully.")
 }
 
 func main() {
@@ -47,7 +53,7 @@ func main() {
 
 	flag.IntVar(&port, "port", 1818, "the port of the server")
 	flag.StringVar(&server.URL, "url", "http://localhost", "the url of the site to cache")
-	flag.IntVar(&cache.MaxSize, "maxsize", 1000000000*1000 /* 1 TB */, "the max size of the cache")
+	flag.IntVar(&cache.MaxSize, "maxsize", 1000000000000, "the max size of the cache") // Default=1TB
 	flag.Parse()
 
 	server.Instance.Start(fmt.Sprint(port))

@@ -44,14 +44,6 @@ func (s *Server) Start(port string) {
 	}
 
 	s.ReverseProxy = httputil.NewSingleHostReverseProxy(link)
-	// FIXME:
-	// 	Couldn't intercept the response from the reverse proxy
-	// 	because the response body could be read once only so
-	// 	either I save it and the client won't receive anything
-	// 	or the client receive it and I don't intercept anything
-	// 	I choose the second choice because I could then just
-	// 	download it from another request in the background and
-	// 	that's what I did.
 	s.ProxyServer = httptest.NewServer(s.ReverseProxy)
 
 	go s.Http.ListenAndServe()

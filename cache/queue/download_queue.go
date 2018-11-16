@@ -13,32 +13,32 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package cache
+package queue
 
-type DownloadQueue struct {
-	Model
-	Path string `gorm:"Type:varchar(64);Column:path;NOT NULL;primary_key;unique" json:"path"`
-	File string `gorm:"Type:varchar(64);Column:file;NOT NULL;primary_key;unique" json:"file"`
-}
+import (
+	"github.com/AnimeTwist/ATCache/redis"
+	"time"
+)
 
-func (d *DownloadQueue) Exists(path string) bool {
-	return Instance.Find(d, &DownloadQueue{Path: path}).Error == nil
-}
-
-func (d *DownloadQueue) Create(path, file string) *DownloadQueue {
-	d.File = file
-	d.Path = path
-	if err := Instance.Create(d).Error; err != nil {
-		panic(err)
+func Exists(path string) bool {
+	if redis.Client.Exists(path).Err() != nil {
+		return false
 	}
-
-	return d
+	return true
 }
 
-func (d *DownloadQueue) Delete(path string) *DownloadQueue {
-	if err := Instance.Delete(d, &DownloadQueue{Path: path}).Error; err != nil {
-		panic(err)
-	}
+func Create(path, file string) {
+	go func() {
+		if err := redis.Client.Set(path, file, time.Second*5).Err(); err != nil {
+			panic(err)
+		}
+	}()
+}
 
-	return d
+func Remove(path string) {
+	go func() {
+		if err := redis.Client.Del(path).Err(); err != nil {
+			panic(err)
+		}
+	}()
 }

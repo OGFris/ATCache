@@ -17,6 +17,7 @@ package server
 
 import (
 	"github.com/AnimeTwist/ATCache/cache"
+	"github.com/AnimeTwist/ATCache/cache/queue"
 	"github.com/OGFris/Treagler"
 	"io"
 	"io/ioutil"
@@ -102,11 +103,10 @@ func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusFound)
 
 			go func() {
-				d := cache.DownloadQueue{}
-				if d.Exists(path) {
+				if queue.Exists(path) {
 					return
 				} else {
-					d.Create(path, filePath)
+					queue.Create(path, filePath)
 				}
 
 				if _, err := os.Stat(filePath); err == nil {
@@ -129,14 +129,18 @@ func (_ *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				}
 
 				log.Println("Finished downloading:", path, "- Size: ", written/1000000, "MB.")
-				d.Delete(path)
+				queue.Remove(path)
 				c.Create(path, filePath, response.Header.Get("Content-Type"))
 				traffic := cache.Traffic{}
 				traffic.Create(strings.Split(r.RemoteAddr, ":")[0], c.ID)
 				if cache.SizeLeft() < int(written) {
 					removedCache := cache.SmallestTraffic()
 					err := os.Remove(removedCache.File)
-					log.Println("Cache", removedCache.ID, "got removed because of reaching max cache size.")
+					log.Println(
+						"Cache",
+						removedCache.ID,
+						"got removed because of reaching the maximum cache size allowed.",
+					)
 					removedCache.Delete(removedCache.ID)
 					if err != nil {
 						panic(err)

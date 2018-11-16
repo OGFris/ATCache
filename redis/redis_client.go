@@ -13,21 +13,28 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-package cache
+package redis
 
 import (
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/jinzhu/gorm"
+	"github.com/go-redis/redis"
+	"log"
+	"net"
 )
 
-var Instance *gorm.DB
+var Client *redis.Client
 
-func Load(user, password, name string) (err error) {
-	Instance, err = gorm.Open("mysql", user+":"+password+"@/"+name+"?charset=utf8&parseTime=True&loc=Local")
-	if err == nil {
-		Instance.AutoMigrate(&Traffic{}, &Cache{})
-		Instance.Model(&Traffic{}).AddForeignKey("cache_id", "caches(id)", "RESTRICT", "RESTRICT")
-		return nil
+func Load(host, port, password string, DB int) error {
+	Client = redis.NewClient(&redis.Options{
+		Addr:     net.JoinHostPort(host, port),
+		Password: password,
+		DB:       DB,
+	})
+
+	if r, err := Client.Ping().Result(); err != nil {
+		return err
+	} else {
+		log.Println("Redis Ping:", r)
 	}
-	return
+
+	return nil
 }
